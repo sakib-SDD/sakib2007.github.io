@@ -1,0 +1,590 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TAKAMOL AUTO FILL — FINAL QR (Final)</title>
+
+<!-- libs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+
+<style>
+  /* TAF styling */
+  body { font-family: "Times New Roman", serif; padding:18px; background:#f5f5f5; color:#111; }
+  h1 { text-align:center; margin:0 0 14px; font-size:20px; display:flex; align-items:center; justify-content:space-between; }
+  .container { display:flex; gap:18px; align-items:flex-start; }
+  .panel { background:#fff; padding:18px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+  .left { width:420px; }
+  .right { flex:1; min-width:520px; }
+  label{ display:block; margin-top:8px; font-weight:bold; }
+  input[type="text"], input[type="date"], input[type="time"], select { width:100%; padding:6px; margin-top:6px; border-radius:6px; border:1px solid #cfcfcf; box-sizing:border-box; font-family:inherit; }
+  .upload-box { margin-top:12px; border:2px dashed #777; padding:12px; border-radius:10px; text-align:center; background:#fff; }
+  /* grid style */
+  .grid-wrap { margin-top:10px; border:1px solid #e6eef7; border-radius:8px; overflow:hidden; background:#fff; }
+  table.grid { width:100%; border-collapse:collapse; table-layout:fixed; font-size:14px; }
+  table.grid thead th { background:#eef6ff; padding:8px; border-bottom:1px solid #e6eef7; text-align:center; position:sticky; top:0; z-index:2; font-weight:700; }
+  .colHeadInner { display:flex; align-items:center; justify-content:center; gap:6px; }
+  .colClear { background:transparent; border:0; color:#a11; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:6px; }
+  table.grid tbody td { padding:0; border-bottom:1px solid #f3f8ff; }
+  .rowHeader { width:48px; text-align:center; background:#f1f9ff; border-right:1px solid #e6eef7; padding:6px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .rowClear { background:transparent; border:0; color:#a11; cursor:pointer; font-weight:700; padding:2px 6px; border-radius:6px; }
+  .cell-input { width:100%; box-sizing:border-box; border:0; padding:8px; height:34px; font-size:13px; font-family:inherit; outline:none; background:transparent; }
+  .grid-scroll { max-height:520px; overflow:auto; }
+  .controls { display:flex; gap:8px; margin-top:10px; align-items:center; }
+  .btn { background:#28a745; color:#fff; padding:8px 12px; border-radius:8px; border:0; cursor:pointer; font-weight:bold; font-family:inherit; }
+  .btn.secondary { background:#0ea5e9; }
+  .btn.danger { background:#ef4444; }
+  .small { color:#556; margin-left:auto; font-size:13px; }
+  #scanTextStatus { margin-top:8px; font-weight:700; color:#25406a; }
+  /* candidates table */
+  #candidatesTable { width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
+  #candidatesTable th, #candidatesTable td { border:1px solid #cbd7e6; padding:8px; text-align:center; }
+  #candidatesTable th { background:#e6f2ff; font-weight:700; }
+</style>
+</head>
+<body>
+
+<h1>
+  TAKAMOL AUTO FILL — FINAL QR
+  <div style="font-size:13px;"><em>Note:</em> Column A = Name, Column B = Ignored, Column C = Reservation ID</div>
+</h1>
+
+<div class="container">
+  <!-- LEFT -->
+  <div class="panel left">
+    <label>Ticket No.:</label><input id="ticketNo" type="text" />
+    <label>Date:</label><input id="date" type="date" />
+    <label>CBT Start Time:</label><input id="cbtStartTime" type="time" />
+    <label>Practical Start Time:</label><input id="practicalStartTime" type="time" />
+    <label>Occupation Name:</label>
+    <select id="occupationName">
+      <option>Construction Worker</option>
+      <option>Barber</option>
+      <option>Load and Unload Worker</option>
+      <option>Constructing Worker</option>
+      <option>Street Clean Worker</option>
+      <option>Office and Facilities Cleaning Worker</option>
+    </select>
+
+    <div style="margin-top:12px;">
+      <label><strong>Grid input (6 columns × 50 rows)</strong></label>
+      <div class="grid-wrap" aria-label="bulk grid">
+        <table class="grid" aria-hidden="true">
+          <thead>
+            <tr>
+              <th></th>
+              <th><div class="colHeadInner">A <button class="colClear" data-col="0" title="Clear column">×</button></div></th>
+              <th><div class="colHeadInner">B <button class="colClear" data-col="1" title="Clear column">×</button></div></th>
+              <th><div class="colHeadInner">C <button class="colClear" data-col="2" title="Clear column">×</button></div></th>
+              <th><div class="colHeadInner">D <button class="colClear" data-col="3" title="Clear column">×</button></div></th>
+              <th><div class="colHeadInner">E <button class="colClear" data-col="4" title="Clear column">×</button></div></th>
+              <th><div class="colHeadInner">F <button class="colClear" data-col="5" title="Clear column">×</button></div></th>
+            </tr>
+          </thead>
+        </table>
+
+        <div class="grid-scroll">
+          <table class="grid" id="bulkGrid">
+            <tbody id="bulkGridTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="scanGridBtn" class="btn">Scan Grid → Fill Reservation IDs</button>
+        <button id="clearGridBtn" class="btn danger">Clear Grid</button>
+        <button id="addRowsBtn" class="btn secondary">+10 Rows</button>
+        <div class="small">Tip: paste from Excel/Sheets into any cell</div>
+      </div>
+      <div id="scanTextStatus">Status: ready</div>
+    </div>
+
+    <div class="upload-box" style="margin-top:12px;">
+      <label style="font-weight:700">Select Main Folder (with candidate subfolders)</label>
+      <input id="folderInput" type="file" webkitdirectory directory multiple />
+    </div>
+
+    <div class="upload-box" style="margin-top:12px;">
+      <label style="font-weight:700">Select QR Folder</label>
+      <input id="qrFolderInput" type="file" webkitdirectory directory multiple />
+    </div>
+
+    <div style="margin-top:12px;">
+      <button id="scanQRButton" class="btn" style="width:100%;">Scan QR Codes</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel right">
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button class="btn" onclick="markAllType('Not Applicable')">Mark All as Not Applicable</button>
+      <button class="btn" onclick="markAllType('Easy')">Mark All as Easy</button>
+      <div style="margin-left:auto" class="small">Generate PDFs for loaded candidates.</div>
+    </div>
+
+    <table id="candidatesTable">
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Passport</th><th>Type</th><th>Task No.</th><th>Reservation ID</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div style="margin-top:12px;">
+      <button id="generateButton" class="btn">Generate All PDFs</button>
+      <div id="timeEstimate" style="margin-top:8px;font-weight:bold;color:#555;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========= Configuration ========= */
+const NUM_COLS = 6;
+const INITIAL_ROWS = 50;
+
+/* ========= DOM refs ========= */
+const bulkGridTbody = document.getElementById('bulkGridTbody');
+const scanGridBtn = document.getElementById('scanGridBtn');
+const clearGridBtn = document.getElementById('clearGridBtn');
+const addRowsBtn = document.getElementById('addRowsBtn');
+const scanTextStatus = document.getElementById('scanTextStatus');
+
+const folderInput = document.getElementById('folderInput');
+const qrFolderInput = document.getElementById('qrFolderInput');
+const scanQRButton = document.getElementById('scanQRButton');
+const tbody = document.querySelector('#candidatesTable tbody');
+const generateButton = document.getElementById('generateButton');
+const timeEstimate = document.getElementById('timeEstimate');
+
+let allFiles = [], candidates = [];
+
+/* ========= Grid creation ========= */
+function createRow(index) {
+  const tr = document.createElement('tr');
+  tr.dataset.row = index;
+
+  // row header cell with small clear button
+  const th = document.createElement('td');
+  th.className = 'rowHeader';
+  th.innerHTML = `<span style="flex:1">${index}</span><button class="rowClear" data-row="${index}" title="Clear row">×</button>`;
+  tr.appendChild(th);
+
+  for (let c = 0; c < NUM_COLS; c++) {
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'cell-input';
+    inp.dataset.row = index;
+    inp.dataset.col = c;
+    inp.addEventListener('keydown', cellKeyDown);
+    inp.addEventListener('paste', handleCellPaste);
+    td.appendChild(inp);
+    tr.appendChild(td);
+  }
+
+  return tr;
+}
+
+function populateInitialGrid(rows) {
+  bulkGridTbody.innerHTML = '';
+  for (let i = 1; i <= rows; i++) bulkGridTbody.appendChild(createRow(i));
+}
+
+/* ensure row exists */
+function ensureRowExists(index) {
+  if (!bulkGridTbody.querySelector(`tr[data-row="${index}"]`)) {
+    const currentMax = getMaxRow();
+    for (let i = currentMax + 1; i <= index; i++) bulkGridTbody.appendChild(createRow(i));
+  }
+}
+
+/* get current max row */
+function getMaxRow() {
+  const all = bulkGridTbody.querySelectorAll('tr');
+  return all.length ? Number(all[all.length - 1].dataset.row) : 0;
+}
+
+/* focus/select */
+function focusCell(r,c){
+  const el = bulkGridTbody.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
+  if (el) { el.focus(); el.select(); }
+}
+
+/* ========= Paste distribution ========= */
+function handleCellPaste(e){
+  const paste = (e.clipboardData || window.clipboardData).getData('text');
+  if (!paste) return;
+  e.preventDefault();
+  const startRow = Number(this.dataset.row);
+  const startCol = Number(this.dataset.col);
+  const rows = paste.replace(/\r/g,'').split('\n').map(r => r.split('\t'));
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < rows[r].length; c++) {
+      const tr = startRow + r;
+      const tc = startCol + c;
+      ensureRowExists(tr);
+      const input = bulkGridTbody.querySelector(`input[data-row="${tr}"][data-col="${tc}"]`);
+      if (input) input.value = rows[r][c].trim();
+    }
+  }
+  scanTextStatus.textContent = `Pasted ${rows.length} row(s) starting at R${startRow}C${startCol}`;
+}
+
+/* ========= Keyboard nav ========= */
+function cellKeyDown(e){
+  const r = Number(this.dataset.row);
+  const c = Number(this.dataset.col);
+  if (e.key === 'ArrowDown') { e.preventDefault(); focusCell(Math.min(getMaxRow(), r+1), c); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); focusCell(Math.max(1, r-1), c); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); focusCell(r, Math.max(0, c-1)); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); focusCell(r, Math.min(NUM_COLS-1, c+1)); }
+  else if (e.key === 'Tab') { e.preventDefault(); if (!e.shiftKey) focusCell(r, Math.min(NUM_COLS-1, c+1)); else focusCell(r, Math.max(0, c-1)); }
+  else if (e.key === 'Enter') { e.preventDefault(); focusCell(Math.min(getMaxRow(), r+1), c); }
+}
+
+/* ========= Column & Row clear actions ========= */
+function clearEntireColumn(colIndex){
+  bulkGridTbody.querySelectorAll(`input[data-col="${colIndex}"]`).forEach(i => i.value = '');
+  scanTextStatus.textContent = `Cleared column ${String.fromCharCode(65 + Number(colIndex))}`;
+}
+function clearEntireRow(rowIndex){
+  const row = bulkGridTbody.querySelector(`tr[data-row="${rowIndex}"]`);
+  if (!row) return;
+  row.querySelectorAll('input.cell-input').forEach(i => i.value = '');
+  scanTextStatus.textContent = `Cleared row ${rowIndex}`;
+}
+
+/* attach column clear handlers (delegation) */
+document.querySelectorAll('.colClear').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    const col = btn.dataset.col;
+    if (confirm(`Clear entire column ${String.fromCharCode(65 + Number(col))}?`)) clearEntireColumn(col);
+  });
+});
+
+/* delegation for row clear buttons */
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('rowClear')){
+    const row = e.target.dataset.row;
+    if (confirm(`Clear entire row ${row}?`)) clearEntireRow(row);
+  }
+});
+
+/* ========= Extraction logic (from QR +.html) ========= */
+function extractFromLine(line){
+  const res = {name:'', reservation:''};
+
+  const quoted = [...line.matchAll(/"([^"]+)"/g)].map(m=>m[1].trim()).filter(Boolean);
+  if (quoted.length >= 1) res.name = quoted[0];
+
+  if (quoted.length >= 3){
+    const candidate = quoted.find(t=>/([A-Z0-9\-]{4,})/i.test(t) && !/nid|national id/i.test(t));
+    if (candidate) res.reservation = candidate;
+    else res.reservation = quoted[2];
+  }
+
+  if (!res.reservation){
+    const m = line.match(/reservation\s*(?:id)?\s*[:\-\s]*([A-Z0-9\-]{4,})/i);
+    if (m) res.reservation = m[1].trim();
+  }
+
+  if (!res.reservation){
+    const al = [...line.matchAll(/\b([A-Z0-9\-]{4,})\b/ig)].map(m=>m[1]);
+    if (al.length){
+      const filtered = al.filter(t => !/^\d{10,}$/.test(t) && !/nid/i.test(t));
+      res.reservation = (filtered.length? filtered[filtered.length-1] : al[al.length-1]) || '';
+    }
+  }
+
+  if (!res.name){
+    const m2 = line.match(/"([A-Za-z ]{3,})"/);
+    if (m2) res.name = m2[1].trim();
+    else {
+      const parts = line.split(/\t+/).map(s=>s.trim()).filter(Boolean);
+      if (parts.length){
+        const maybe = parts.find(p => !/occupation|reservation|nid|pending|start/i.test(p));
+        res.name = maybe || parts[0];
+      }
+    }
+  }
+
+  if (res.name) res.name = res.name.replace(/\b(NID|Reservation|ID|Pending|Start Practical)\b/ig,'').trim();
+  if (res.reservation) res.reservation = res.reservation.replace(/\b(Reservation|ID)\b/ig,'').trim();
+  return res;
+}
+
+/* ========= Grid scan -> match & fill reservation ========= */
+scanGridBtn.addEventListener('click', () => {
+  const rows = Array.from(bulkGridTbody.querySelectorAll('tr'));
+  if (!rows.length) { alert('Grid is empty'); return; }
+
+  let scanned = 0, matched = 0, filled = 0, unmatched = 0;
+  for (const tr of rows) {
+    // read specific columns per your rule:
+    const nameCell = tr.querySelector('input[data-col="0"]');
+    const resCell  = tr.querySelector('input[data-col="2"]'); // third column
+    const allCells = Array.from(tr.querySelectorAll('input.cell-input')).map(i=>i.value.trim()).filter(Boolean);
+
+    const nameRaw = nameCell ? nameCell.value.trim() : '';
+    const resRaw  = resCell ? resCell.value.trim() : '';
+
+    if (!nameRaw && allCells.length === 0) continue; // skip blank row
+    scanned++;
+
+    if (!nameRaw) {
+      // If name missing, try to extract from concatenated line (fallback)
+      const concatenated = allCells.join('    ');
+      const ex = extractFromLine(concatenated);
+      if (!ex.name) { unmatched++; continue; }
+      // try to match ex.name
+      const row = findRowByName(ex.name);
+      if (row) {
+        matched++;
+        const reservationToUse = ex.reservation || resRaw;
+        if (reservationToUse) {
+          const input = row.querySelector('.reservationId');
+          if (input) { input.value = reservationToUse; input.dispatchEvent(new Event('input',{bubbles:true})); filled++; }
+        }
+      } else unmatched++;
+    } else {
+      // we have explicit name in column A
+      const row = findRowByName(nameRaw);
+      if (row) {
+        matched++;
+        // Priority: use reservation from column C (resRaw) if present; else fall back to extraction on row
+        let reservationToUse = resRaw;
+        if (!reservationToUse) {
+          // fallback extraction from concatenated columns
+          const concatenated = allCells.join('    ');
+          const ex = extractFromLine(concatenated);
+          reservationToUse = ex.reservation || '';
+        }
+        if (reservationToUse) {
+          const input = row.querySelector('.reservationId');
+          if (input) { input.value = reservationToUse; input.dispatchEvent(new Event('input',{bubbles:true})); filled++; }
+        }
+      } else {
+        unmatched++;
+      }
+    }
+  }
+
+  scanTextStatus.textContent = `Scanned ${scanned} rows — filled ${filled}, matched ${matched}, unmatched ${unmatched}.`;
+  alert(`Scan complete.\nScanned: ${scanned}\nFilled: ${filled}\nMatched: ${matched}\nUnmatched: ${unmatched}`);
+});
+
+/* ========= Grid control buttons ========= */
+clearGridBtn.addEventListener('click', () => {
+  if (!confirm('Clear entire grid?')) return;
+  bulkGridTbody.querySelectorAll('input.cell-input').forEach(i=>i.value='');
+  scanTextStatus.textContent = 'Status: cleared';
+});
+addRowsBtn.addEventListener('click', () => {
+  const current = getMaxRow();
+  for (let i = 1; i <= 10; i++) bulkGridTbody.appendChild(createRow(current + i));
+});
+
+/* ========= Folder load and populate candidate table ========= */
+folderInput.addEventListener('change', (ev) => {
+  allFiles = Array.from(ev.target.files);
+  const groups = {};
+  allFiles.forEach((f) => {
+    const parts = f.webkitRelativePath.split('/');
+    if (parts.length >= 2) {
+      const sub = parts[1];
+      (groups[sub] = groups[sub] || []).push(f);
+    }
+  });
+  candidates = Object.keys(groups).map(name => ({ name, files: groups[name] }));
+
+  // missing photos check
+  let missingReport = "";
+  candidates.forEach(c => {
+    const found = {};
+    c.files.forEach(f => {
+      const fname = f.name.toLowerCase();
+      if (fname.startsWith("1.")) found[1] = true;
+      if (fname.startsWith("2.")) found[2] = true;
+      if (fname.startsWith("3.")) found[3] = true;
+      if (fname.startsWith("4.")) found[4] = true;
+    });
+    [1,2,3,4].forEach(n => { if (!found[n]) missingReport += `Folder "${c.name}" missing photo ${n}\n`; });
+  });
+  if (missingReport) alert("⚠️ Missing Photos:\n\n" + missingReport);
+
+  // populate candidates table
+  tbody.innerHTML = '';
+  candidates.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td><input type="text" value="${escapeHtml(c.name)}" readonly style="min-width:120px;width:auto;"></td>
+      <td><input type="text" class="passport" style="width:120px;" /></td>
+      <td>
+        <select class="type" style="width:120px;">
+          <option>Hard</option>
+          <option>Moderate</option>
+          <option>Easy</option>
+          <option>Not Applicable</option>
+        </select>
+      </td>
+      <td><input type="text" class="taskNo" style="width:100px;" /></td>
+      <td><input type="text" class="reservationId" style="width:130px;" /></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  attachDuplicateCheckers();
+});
+
+/* ========= Duplicate check ========= */
+function attachDuplicateCheckers() {
+  tbody.querySelectorAll('.passport').forEach(input => {
+    input.addEventListener('input', () => checkDuplicate('passport'));
+  });
+  tbody.querySelectorAll('.reservationId').forEach(input => {
+    input.addEventListener('input', () => checkDuplicate('reservationId'));
+  });
+}
+function checkDuplicate(type) {
+  const seen = {};
+  Array.from(tbody.rows).forEach(row => {
+    const name = row.cells[1].querySelector('input').value;
+    const val = row.querySelector('.' + type).value.trim();
+    if (val) {
+      if (seen[val]) {
+        alert(`Duplicate ${type.toUpperCase()}!\nName 1: ${seen[val]}\nName 2: ${name}\nValue: ${val}`);
+      } else seen[val] = name;
+    }
+  });
+}
+
+/* ========= QR folder scan (jsQR) ========= */
+scanQRButton.addEventListener('click', async () => {
+  const files = Array.from(qrFolderInput.files);
+  if (files.length === 0) return alert("Please select a QR folder!");
+  for (const file of files) {
+    const dataUrl = await fileToDataURL(file);
+    const img = await loadImage(dataUrl);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = img.width; canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+    if (qrCode) {
+      const text = qrCode.data;
+      const nameMatch = text.match(/Candidate Name\s*:\s*(.*)/i);
+      const passMatch = text.match(/Passport Number\s*:\s*(.*)/i);
+      const resMatch = text.match(/Reservation ID\s*:\s*(.*)/i);
+      const name = nameMatch ? nameMatch[1].trim() : "";
+      const passport = passMatch ? passMatch[1].trim() : "";
+      const reservation = resMatch ? resMatch[1].trim() : "";
+      if (name) {
+        const row = findRowByName(name);
+        if (row) {
+          if (passport) row.querySelector(".passport").value = passport;
+          if (reservation) {
+            row.querySelector(".reservationId").value = reservation;
+            row.querySelector(".reservationId").dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      }
+    }
+  }
+  alert("✅ QR Scan complete and data filled.");
+});
+
+function fileToDataURL(file) { return new Promise((res) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); }); }
+function loadImage(src) { return new Promise((res) => { const img = new Image(); img.onload = () => res(img); img.src = src; }); }
+
+/* ========= PDF generation (unchanged) ========= */
+generateButton.addEventListener('mouseenter', () => {
+  if (candidates.length > 0) {
+    const estimateSec = candidates.length * 1.5;
+    const mins = Math.floor(estimateSec / 60);
+    const secs = Math.floor(estimateSec % 60);
+    timeEstimate.textContent = `Estimated: ${mins>0?mins+"m ":""}${secs}s for ${candidates.length} candidates.`;
+  } else timeEstimate.textContent = '';
+});
+
+generateButton.addEventListener('click', async () => {
+  if (candidates.length === 0) return alert("No candidates loaded!");
+  const { jsPDF } = window.jspdf;
+  const common = {
+    ticketNo: document.getElementById('ticketNo').value,
+    date: document.getElementById('date').value,
+    cbtTime: document.getElementById('cbtStartTime').value,
+    pracTime: document.getElementById('practicalStartTime').value,
+    occupation: document.getElementById('occupationName').value
+  };
+  for (let i = 0; i < candidates.length; i++) {
+    const row = tbody.rows[i];
+    const cand = {
+      name: row.cells[1].querySelector('input').value,
+      passport: row.cells[2].querySelector('input').value,
+      type: row.cells[3].querySelector('select').value,
+      taskNo: row.cells[4].querySelector('input').value,
+      reservationId: row.cells[5].querySelector('input').value,
+    };
+    const imgs = {};
+    ['1','2','3','4'].forEach(n => {
+      const f = candidates[i].files.find(f => f.name.toLowerCase().startsWith(n + '.'));
+      if (f) imgs[n] = f;
+    });
+    const doc = new jsPDF('p','in','a4');
+    doc.setFont('times');
+    doc.setFontSize(20);
+    doc.text('Photos of Exam Tracker', 2.6, 1);
+    doc.setFontSize(12);
+    const data = [
+      [`Test Centre: Bangladesh German TTC`,`Occupation: ${common.occupation}`,`Date: ${common.date}`],
+      [`Candidate Name: ${cand.name}`,`Passport: ${cand.passport}`,`Ticket No.: ${common.ticketNo}`],
+      [`Reservation ID: ${cand.reservationId}`,`Practical Task No.: ${cand.taskNo}`,`Type: ${cand.type}`],
+      [`CBT Start: ${common.cbtTime}`,`Practical Start: ${common.pracTime}`,``],
+    ];
+    doc.autoTable({ startY: 1.5, body: data });
+    const pw = 2.9, ph = 3.9, gap = 0.3, ox = 1.2;
+    const pos = [
+      { x: ox, y: 3.5 },
+      { x: ox + pw + gap, y: 3.5 },
+      { x: ox, y: 3.5 + ph + gap },
+      { x: ox + pw + gap, y: 3.5 + ph + gap },
+    ];
+    await Promise.all(Object.entries(imgs).map(([n, file], idx) =>
+      new Promise((res) => {
+        const reader = new FileReader();
+        reader.onload = (e) => { doc.addImage(e.target.result, 'JPEG', pos[idx].x, pos[idx].y, pw, ph); res(); };
+        reader.readAsDataURL(file);
+      })
+    ));
+    doc.save(`${cand.name}.pdf`);
+    await new Promise(r => setTimeout(r, 300));
+  }
+});
+
+/* ========= Name matching helper ========= */
+function findRowByName(name){
+  const norm = s => String(s||'').replace(/\s+/g,'').toLowerCase();
+  for (const row of tbody.rows){
+    const candidateName = row.cells[1].querySelector('input').value;
+    if (norm(candidateName) === norm(name)) return row;
+  }
+  return null;
+}
+
+/* ========= small utilities ========= */
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ========= initial populate & attach dynamic handlers ========= */
+populateInitialGrid(INITIAL_ROWS);
+
+/* Expose markAllType */
+window.markAllType = function(value) {
+  document.querySelectorAll('#candidatesTable .type').forEach(sel => { sel.value = value; });
+};
+</script>
+</body>
+</html>
